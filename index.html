@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>INFO 3300 Project 1</title>
+	<script src="https://d3js.org/d3.v3.min.js"></script>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="https://d3js.org/topojson.v2.min.js"></script>
+	<link href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet">
+	 <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+	<!--A radial scale used to create the circular bar graph, found from:
+		https://gist.github.com/mbostock/6fead6d1378d6df5ae77bb6a719afcb2#file-d3-scale-radial-js -->
+	<script src = "assets/d3-scale-radial.js"></script>
+
+	<body style = "background-color: #e6edff;">
+	<div id = "intro-info" style = "margin: auto; width: 860px;">
+		<p style = "font-family: Noto Sans; font-size: 40px; text-align: center; font-weight: bold; margin-bottom: 0px">Pokemon Go Data Visualization</p>
+		<p style = "font-family: Noto Sans; font-size: 20px; text-align: center;">Gotta Catch 'Em All!</p>
+		<p style = "font-family: Noto Sans; font-size: 15px; text-align: center;">Visualizations based on <a href = "https://www.kaggle.com/semioniy/predictemall">this dataset</a>.
+		</br>
+		Created by Jill Wu, Stefan Joseph, and Christian Llamas</p>
+
+
+	</div>
+
+	<div id = "viz1" style = "margin: auto; width: 860px; margin-top: 50px; border-top: 1px: border-style: solid #b2abed;">
+	</div>
+	<!-- visualization 1 modeled off of https://bl.ocks.org/mbostock/6fead6d1378d6df5ae77bb6a719afcb2 -->
+		<script>
+			var rawData;
+			d3.csv("data/pokemon-data.csv", function(data){
+
+				rawData = data;
+				var width = 860, height = 860;
+				//svg box for title and legend
+				var svgTitle = d3.select("#viz1").append("svg")
+												.attr("width", width)
+												.attr("height", 170);
+				//svg box for graph
+				var svg = d3.select("#viz1").append("svg")
+											.attr("width", width)
+											.attr("height", height);
+				//title
+				svgTitle.append("text")
+				      .attr("y", 40)
+				      .attr("x", width/2)
+				      .attr("text-anchor", "middle")
+				      .style("font-family", "Noto Sans")
+				      .style("font-size", "30px")
+				      .text("Average Pokemon Count per Hour");
+				svgTitle.append("text")
+						.attr("y", 70)
+						.attr("x", width/2)
+						.attr("text-anchor", "middle")
+						.style("font-family", "Noto Sans")
+						.style("font-size", "14 px")
+						.text("Data recorded from 09/02/2016 - 09/08/2016 in Los Angeles, New York City, and Chicago")
+				var legend = svgTitle.append("g");
+				//day hours legend
+				legend.append("rect")
+						.attr("y", 90)
+						.attr("x", 270)
+						.style("fill", "#ffe173")
+						.style("stroke", "none")
+						.attr("width", "20")
+						.attr("height", "20");
+				legend.append("text")
+						.attr("y", 106)
+						.attr("x", 300)
+						.text("Average Daytime Hours in NY, LA, Chicago")
+						.style("font-family", "Noto Sans")
+						.style("font-size", "14px");
+				//night hours legend
+				legend.append("rect")
+						.attr("y", 120)
+						.attr("x", 270)
+						.style("fill", "#bbc9f0")
+						.style("stroke", "none")
+						.attr("width", "20")
+						.attr("height", "20");
+				legend.append("text")
+						.attr("y", 136)
+						.attr("x", 300)
+						.text("Average Nightime Hours in NY, LA, Chicago")
+						.style("font-family", "Noto Sans")
+						.style("font-size", "14px");
+				//count legend
+				legend.append("rect")
+						.attr("y", 150)
+						.attr("x", 270)
+						.style("fill", "#b2abed")
+						.style("stroke", "none")
+						.attr("width", "20")
+						.attr("height", "20");
+				legend.append("text")
+						.attr("y", 166)
+						.attr("x", 300)
+						.text("Average Pokemon Counts per Hour")
+						.style("font-family", "Noto Sans")
+						.style("font-size", "14px");
+				//split data into hours, sum up how many pokemon appear each hour
+				var hourData = [];
+				var hours = [];
+				for (var i = 0; i < 24; i++){
+					if (i < 2){
+						var hour = 22 + i;
+					} else{
+						var hour = i - 2;
+					}
+					var newDict = {"hour": hour, "count": 0}
+					hourData.push(newDict);
+					hours.push(i);
+				}
+				rawData.forEach(function(pokemon){
+					var hour = pokemon.appearedHour;
+					hourData[hour]["count"] += 1;
+				});
+				for (var i = 0; i < 24; i++){
+					hourData[i]["count"] = hourData[i]["count"] / 7.0;
+				}
+				//instantiate some variables
+				var innerRadius = 180;
+				var outerRadius = Math.min(width, height)/2;
+				//append group
+				var g = svg.append("g").attr("transform", "translate(" + width/2 + "," + height/2 + ")");
+				//x scale, y scale
+				var x = d3.scaleBand()
+					.domain(hours)
+					.range([0, 2*Math.PI]).align(0);
+				var y = d3.scaleRadial().range([innerRadius, outerRadius]).domain([0, 2300]);
+				//add pokeball, credit here https://www.flaticon.com/free-icon/pokeball_361998#term=pokeball&page=1&position=16
+				g.append("svg:image")
+					.attr('xlink:href', 'assets/pokeball.png')
+					.attr("transform", "translate(-16, -16)")
+					.attr('height', '32px')
+					.attr('width', '32px');
+				//add arcs to indicate day and night
+				//day
+				g.append("path")
+					.style("fill", "#ffe173")
+					.attr("d", d3.arc()
+								.innerRadius(16)
+								.outerRadius(innerRadius)
+								.startAngle(0)
+								.endAngle(2*Math.PI));
+				//night
+				g.append("path")
+					.style("fill", "#bbc9f0")
+					.attr("d", d3.arc()
+								.innerRadius(16)
+								.outerRadius(innerRadius)
+								.startAngle(x(4) + 3*Math.PI/24)
+								.endAngle(x(17) + 3*Math.PI/24));
+				//add sun, credit here https://vignette.wikia.nocookie.net/fantendo/images/e/e0/Pokemon_Sun_Icon.png/revision/latest?cb=20170624183657
+				g.append("svg:image")
+					.attr('xlink:href', 'assets/pokemon-sun.png')
+					.attr("transform", "translate(-30, -140)")
+					.attr('height', '60px')
+					.attr('width', '60px');
+				//add moon, credit here https://alexalan.deviantart.com/art/POKEMON-MOON-SYMBOL-593895361
+				g.append("svg:image")
+					.attr('xlink:href', 'assets/pokemon-moon.png')
+					.attr("transform", "translate(-30, 80)")
+					.attr('height', '60px')
+					.attr('width', '60px');
+				//adding arcs for each hour
+				hourData.forEach(function(data){
+					g.append("path")
+					.style("fill", "#b2abed")
+					.attr("d", d3.arc()
+						.innerRadius(innerRadius)
+						.outerRadius(y(data.count))
+						.startAngle(x(data.hour)+ Math.PI)
+						.endAngle(x(data.hour) + Math.PI + x.bandwidth())
+						.padAngle(0.05)
+						.padRadius(innerRadius));
+					//add hour label
+					var label = g.append("g")
+								.attr("text-anchor", "middle")
+								.attr("transform", "rotate(" + ((x(data.hour) + x.bandwidth() / 2) * 180 / Math.PI - 90 + 180) + ")translate(" + innerRadius +",0)");
+					var transformVal = (x(data.hour) + x.bandwidth() / 2 + Math.PI / 2) % (2 * Math.PI)
+					if (transformVal > Math.PI) {
+						label.append("text")
+						.attr("transform", "rotate(90)translate(0,16)")
+						.text(data.hour)
+						.style("font-family", "Noto Sans");
+					} else{
+						label.append("text")
+						.attr("transform", "rotate(-90)translate(0,-9)")
+						.text(data.hour)
+						.style("font-family", "Noto Sans");
+					}
+					//add ticks for hours
+					label.append("line")
+						.attr("x2", -4)
+						.attr("stroke", "#000");
+
+				});
+				//add numbers to radius lines
+				var yAxis = g.append("g")
+							.attr("text-anchor", "middle");
+				var yTick = yAxis
+								.selectAll("g")
+								.data(y.ticks(1).slice(1))
+								.enter().append("g")
+
+				//radius lines & scale
+				var circleMarkerRadius = 0;
+				for (var i = 0; i < 6; i++){
+					yTick.append("circle")
+					.attr("fill", "none")
+					.attr("stroke", "#000")
+					.attr("opacity", "0.5")
+					.attr("r", y(circleMarkerRadius))
+					.attr("opacity", "0.6");
+					//add tick numbers
+					yTick.append("text")
+						.attr("y", -y(circleMarkerRadius))
+						.attr("dy", "0.35em")
+						.attr("fill", "none")
+						.attr("stroke", "#e6edff")
+						.attr("stroke-width", 5)
+						.text(circleMarkerRadius)
+						.style("font-family", "Noto Sans");
+					yTick.append("text")
+							.attr("y", -y(circleMarkerRadius))
+							.attr("dy", "0.35em")
+							.text(circleMarkerRadius)
+							.style("font-family", "Noto Sans");
+					circleMarkerRadius += 300;
+				};
+			});
+	</script>
+
+	<script>
+	function idToMon(id){
+	  var num = parseInt(id);
+	  var pokemon = {};
+	  switch (num) {
+	    case 1:
+	      pokemon = {name: "Bulbasaur", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 2:
+	      pokemon = {name: "Ivysaur", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 3:
+	      pokemon = {name: "Venusaur", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 4:
+	      pokemon = {name: "Charmander", type1:"Fire", type2:"Null"};
+	      break;
+	    case 5:
+	      pokemon = {name: "Charmeleon", type1:"Fire", type2:"Null"};
+	      break;
+	    case 6:
+	      pokemon = {name: "Charizard", type1:"Fire", type2:"Flying"};
+	      break;
+	    case 7:
+	      pokemon = {name: "Squirtle", type1:"Water", type2:"Null"};
+	      break;
+	    case 8:
+	      pokemon = {name: "Wartortle", type1:"Water", type2:"Null"};
+	      break;
+	    case 9:
+	      pokemon = {name: "Blastoise", type1:"Water", type2:"Null"};
+	      break;
+	    case 10:
+	      pokemon = {name: "Caterpie", type1:"Bug", type2:"Null"};
+	      break;
+	    case 11:
+	      pokemon = {name: "Metapod", type1:"Bug", type2:"Null"};
+	      break;
+	    case 12:
+	      pokemon = {name: "Butterfree", type1:"Bug", type2:"Flying"};
+	      break;
+	    case 13:
+	      pokemon = {name: "Weedle", type1:"Bug", type2:"Poison"};
+	      break;
+	    case 14:
+	      pokemon = {name: "Kakuna", type1:"Bug", type2:"Poison"};
+	      break;
+	    case 15:
+	      pokemon = {name: "Beedrill", type1:"Bug", type2:"Poison"};
+	      break;
+	    case 16:
+	      pokemon = {name: "Pidgey", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 17:
+	      pokemon = {name: "Pidgeotto", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 18:
+	      pokemon = {name: "Pidgeot", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 19:
+	      pokemon = {name: "Rattata", type1:"Normal", type2:"Null"};
+	      break;
+	    case 20:
+	      pokemon = {name: "Raticate", type1:"Normal", type2:"Null"};
+	      break;
+	    case 21:
+	      pokemon = {name: "Spearow", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 22:
+	      pokemon = {name: "Fearow", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 23:
+	      pokemon = {name: "Ekans", type1:"Poison", type2:"Null"};
+	      break;
+	    case 24:
+	      pokemon = {name: "Arbok", type1:"Poison", type2:"Null"};
+	      break;
+	    case 25:
+	      pokemon = {name: "Pikachu", type1:"Electric", type2:"Null"};
+	      break;
+	    case 26:
+	      pokemon = {name: "Raichu", type1:"Electric", type2:"Null"};
+	      break;
+	    case 27:
+	      pokemon = {name: "Sandshrew", type1:"Ground", type2:"Null"};
+	      break;
+	    case 28:
+	      pokemon = {name: "Sandslash", type1:"Ground", type2:"Null"};
+	      break;
+	    case 29:
+	      pokemon = {name: "Nidoran♀", type1:"Poison", type2:"Null"};
+	      break;
+	    case 30:
+	      pokemon = {name: "Nidorina", type1:"Poison", type2:"Null"};
+	      break;
+	    case 31:
+	      pokemon = {name: "Nidoqueen", type1:"Poison", type2:"Ground"};
+	      break;
+	    case 32:
+	      pokemon = {name: "Nidoran♂", type1:"Poison", type2:"Null"};
+	      break;
+	    case 33:
+	      pokemon = {name: "Nidorino", type1:"Poison", type2:"Null"};
+	      break;
+	    case 34:
+	      pokemon = {name: "Nidoking", type1:"Poison", type2:"Ground"};
+	      break;
+	    case 35:
+	      pokemon = {name: "Clefairy", type1:"Fairy", type2:"Null"};
+	      break;
+	    case 36:
+	      pokemon = {name: "Clefable", type1:"Fairy", type2:"Null"};
+	      break;
+	    case 37:
+	      pokemon = {name: "Vulpix", type1:"Fire", type2:"Null"};
+	      break;
+	    case 38:
+	      pokemon = {name: "Ninetales", type1:"Fire", type2:"Null"};
+	      break;
+	    case 39:
+	      pokemon = {name: "Jigglypuff", type1:"Normal", type2:"Fairy"};
+	      break;
+	    case 40:
+	      pokemon = {name: "Wigglytuff", type1:"Normal", type2:"Fairy"};
+	      break;
+	    case 41:
+	      pokemon = {name: "Zubat", type1:"Poison", type2:"Flying"};
+	      break;
+	    case 42:
+	      pokemon = {name: "Golbat", type1:"Poison", type2:"Flying"};
+	      break;
+	    case 43:
+	      pokemon = {name: "Oddish", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 44:
+	      pokemon = {name: "Gloom", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 45:
+	      pokemon = {name: "Vileplume", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 46:
+	      pokemon = {name: "Paras", type1:"Bug", type2:"Grass"};
+	      break;
+	    case 47:
+	      pokemon = {name: "Parasect", type1:"Bug", type2:"Grass"};
+	      break;
+	    case 48:
+	      pokemon = {name: "Venonat", type1:"Bug", type2:"Poison"};
+	      break;
+	    case 49:
+	      pokemon = {name: "Venomoth", type1:"Bug", type2:"Poison"};
+	      break;
+	    case 50:
+	      pokemon = {name: "Diglett", type1:"Ground", type2:"Null"};
+	      break;
+	    case 51:
+	      pokemon = {name: "Dugtrio", type1:"Ground", type2:"Null"};
+	      break;
+	    case 52:
+	      pokemon = {name: "Meowth", type1:"Normal", type2:"Null"};
+	      break;
+	    case 53:
+	      pokemon = {name: "Persian", type1:"Normal", type2:"Null"};
+	      break;
+	    case 54:
+	      pokemon = {name: "Psyduck", type1:"Water", type2:"Null"};
+	      break;
+	    case 55:
+	      pokemon = {name: "Golduck", type1:"Water", type2:"Null"};
+	      break;
+	    case 56:
+	      pokemon = {name: "Mankey", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 57:
+	      pokemon = {name: "Primeape", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 58:
+	      pokemon = {name: "Growlithe", type1:"Fire", type2:"Null"};
+	      break;
+	    case 59:
+	      pokemon = {name: "Arcanine", type1:"Fire", type2:"Null"};
+	      break;
+	    case 60:
+	      pokemon = {name: "Poliwag", type1:"Water", type2:"Null"};
+	      break;
+	    case 61:
+	      pokemon = {name: "Poliwhirl", type1:"Water", type2:"Null"};
+	      break;
+	    case 62:
+	      pokemon = {name: "Poliwrath", type1:"Water", type2:"Fighting"};
+	      break;
+	    case 63:
+	      pokemon = {name: "Abra", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 64:
+	      pokemon = {name: "Kadabra", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 65:
+	      pokemon = {name: "Alakazam", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 66:
+	      pokemon = {name: "Machop", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 67:
+	      pokemon = {name: "Machoke", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 68:
+	      pokemon = {name: "Machamp", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 69:
+	      pokemon = {name: "Bellsprout", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 70:
+	      pokemon = {name: "Weepinbell", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 71:
+	      pokemon = {name: "Victreebel", type1:"Grass", type2:"Poison"};
+	      break;
+	    case 72:
+	      pokemon = {name: "Tentacool", type1:"Water", type2:"Poison"};
+	      break;
+	    case 73:
+	      pokemon = {name: "Tentacruel", type1:"Water", type2:"Poison"};
+	      break;
+	    case 74:
+	      pokemon = {name: "Geodude", type1:"Rock", type2:"Ground"};
+	      break;
+	    case 75:
+	      pokemon = {name: "Graveler", type1:"Rock", type2:"Ground"};
+	      break;
+	    case 76:
+	      pokemon = {name: "Golem", type1:"Rock", type2:"Ground"};
+	      break;
+	    case 77:
+	      pokemon = {name: "Ponyta", type1:"Fire", type2:"Null"};
+	      break;
+	    case 78:
+	      pokemon = {name: "Rapidash", type1:"Fire", type2:"Null"};
+	      break;
+	    case 79:
+	      pokemon = {name: "Slowpoke", type1:"Water", type2:"Psychic"};
+	      break;
+	    case 80:
+	      pokemon = {name: "Slowbro", type1:"Water", type2:"Psychic"};
+	      break;
+	    case 81:
+	      pokemon = {name: "Magnemite", type1:"Electric", type2:"Steel"};
+	      break;
+	    case 82:
+	      pokemon = {name: "Magneton", type1:"Electric", type2:"Steel"};
+	      break;
+	    case 83:
+	      pokemon = {name: "Farfetch'd", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 84:
+	      pokemon = {name: "Doduo", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 85:
+	      pokemon = {name: "Dodrio", type1:"Normal", type2:"Flying"};
+	      break;
+	    case 86:
+	      pokemon = {name: "Seel", type1:"Water", type2:"Null"};
+	      break;
+	    case 87:
+	      pokemon = {name: "Dewgong", type1:"Water", type2:"Ice"};
+	      break;
+	    case 88:
+	      pokemon = {name: "Grimer", type1:"Poison", type2:"Null"};
+	      break;
+	    case 89:
+	      pokemon = {name: "Muk", type1:"Poison", type2:"Null"};
+	      break;
+	    case 90:
+	      pokemon = {name: "Shellder", type1:"Water", type2:"Null"};
+	      break;
+	    case 91:
+	      pokemon = {name: "Cloyster", type1:"Water", type2:"Ice"};
+	      break;
+	    case 92:
+	      pokemon = {name: "Gastly", type1:"Ghost", type2:"Poison"};
+	      break;
+	    case 93:
+	      pokemon = {name: "Haunter", type1:"Ghost", type2:"Poison"};
+	      break;
+	    case 94:
+	      pokemon = {name: "Gengar", type1:"Ghost", type2:"Poison"};
+	      break;
+	    case 95:
+	      pokemon = {name: "Onix", type1:"Rock", type2:"Ground"};
+	      break;
+	    case 96:
+	      pokemon = {name: "Drowzee", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 97:
+	      pokemon = {name: "Hypno", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 98:
+	      pokemon = {name: "Krabby", type1:"Water", type2:"Null"};
+	      break;
+	    case 99:
+	      pokemon = {name: "Kingler", type1:"Water", type2:"Null"};
+	      break;
+	    case 100:
+	      pokemon = {name: "Voltorb", type1:"Electric", type2:"Null"};
+	      break;
+	    case 101:
+	      pokemon = {name: "Electrode", type1:"Electric", type2:"Null"};
+	      break;
+	    case 102:
+	      pokemon = {name: "Exeggcute", type1:"Grass", type2:"Psychic"};
+	      break;
+	    case 103:
+	      pokemon = {name: "Exeggutor", type1:"Grass", type2:"Psychic"};
+	      break;
+	    case 104:
+	      pokemon = {name: "Cubone", type1:"Ground", type2:"Null"};
+	      break;
+	    case 105:
+	      pokemon = {name: "Marowak", type1:"Ground", type2:"Null"};
+	      break;
+	    case 106:
+	      pokemon = {name: "Hitmonlee", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 107:
+	      pokemon = {name: "Hitmonchan", type1:"Fighting", type2:"Null"};
+	      break;
+	    case 108:
+	      pokemon = {name: "Lickitung", type1:"Normal", type2:"Null"};
+	      break;
+	    case 109:
+	      pokemon = {name: "Koffing", type1:"Poison", type2:"Null"};
+	      break;
+	    case 110:
+	      pokemon = {name: "Weezing", type1:"Poison", type2:"Null"};
+	      break;
+	    case 111:
+	      pokemon = {name: "Rhyhorn", type1:"Ground", type2:"Rock"};
+	      break;
+	    case 112:
+	      pokemon = {name: "Rhydon", type1:"Ground", type2:"Rock"};
+	      break;
+	    case 113:
+	      pokemon = {name: "Chansey", type1:"Normal", type2:"Null"};
+	      break;
+	    case 114:
+	      pokemon = {name: "Tangela", type1:"Grass", type2:"Null"};
+	      break;
+	    case 115:
+	      pokemon = {name: "Kangaskhan", type1:"Normal", type2:"Null"};
+	      break;
+	    case 116:
+	      pokemon = {name: "Horsea", type1:"Water", type2:"Null"};
+	      break;
+	    case 117:
+	      pokemon = {name: "Seadra", type1:"Water", type2:"Null"};
+	      break;
+	    case 118:
+	      pokemon = {name: "Goldeen", type1:"Water", type2:"Null"};
+	      break;
+	    case 119:
+	      pokemon = {name: "Seaking", type1:"Water", type2:"Null"};
+	      break;
+	    case 120:
+	      pokemon = {name: "Staryu", type1:"Water", type2:"Null"};
+	      break;
+	    case 121:
+	      pokemon = {name: "Starmie", type1:"Water", type2:"Psychic"};
+	      break;
+	    case 122:
+	      pokemon = {name: "Mr. Mime", type1:"Psychic", type2:"Fairy"};
+	      break;
+	    case 123:
+	      pokemon = {name: "Scyther", type1:"Bug", type2:"Flying"};
+	      break;
+	    case 124:
+	      pokemon = {name: "Jynx", type1:"Ice", type2:"Psychic"};
+	      break;
+	    case 125:
+	      pokemon = {name: "Electabuzz", type1:"Electric", type2:"Null"};
+	      break;
+	    case 126:
+	      pokemon = {name: "Magmar", type1:"Fire", type2:"Null"};
+	      break;
+	    case 127:
+	      pokemon = {name: "Pinsir", type1:"Bug", type2:"Null"};
+	      break;
+	    case 128:
+	      pokemon = {name: "Tauros", type1:"Normal", type2:"Null"};
+	      break;
+	    case 129:
+	      pokemon = {name: "Magikarp", type1:"Water", type2:"Null"};
+	      break;
+	    case 130:
+	      pokemon = {name: "Gyarados", type1:"Water", type2:"Flying"};
+	      break;
+	    case 131:
+	      pokemon = {name: "Lapras", type1:"Water", type2:"Ice"};
+	      break;
+	    case 132:
+	      pokemon = {name: "Ditto", type1:"Normal", type2:"Null"};
+	      break;
+	    case 133:
+	      pokemon = {name: "Eevee", type1:"Normal", type2:"Null"};
+	      break;
+	    case 134:
+	      pokemon = {name: "Vaporeon", type1:"Water", type2:"Null"};
+	      break;
+	    case 135:
+	      pokemon = {name: "Jolteon", type1:"Electric", type2:"Null"};
+	      break;
+	    case 136:
+	      pokemon = {name: "Flareon", type1:"Fire", type2:"Null"};
+	      break;
+	    case 137:
+	      pokemon = {name: "Porygon", type1:"Normal", type2:"Null"};
+	      break;
+	    case 138:
+	      pokemon = {name: "Omanyte", type1:"Rock", type2:"Water"};
+	      break;
+	    case 139:
+	      pokemon = {name: "Omastar", type1:"Rock", type2:"Water"};
+	      break;
+	    case 140:
+	      pokemon = {name: "Kabuto", type1:"Rock", type2:"Water"};
+	      break;
+	    case 141:
+	      pokemon = {name: "Kabutops", type1:"Rock", type2:"Water"};
+	      break;
+	    case 142:
+	      pokemon = {name: "Aerodactyl", type1:"Rock", type2:"Flying"};
+	      break;
+	    case 143:
+	      pokemon = {name: "Snorlax", type1:"Normal", type2:"Null"};
+	      break;
+	    case 144:
+	      pokemon = {name: "Articuno", type1:"Ice", type2:"Flying"};
+	      break;
+	    case 145:
+	      pokemon = {name: "Zapdos", type1:"Electric", type2:"Flying"};
+	      break;
+	    case 146:
+	      pokemon = {name: "Moltres", type1:"Fire", type2:"Flying"};
+	      break;
+	    case 147:
+	      pokemon = {name: "Dratini", type1:"Dragon", type2:"Null"};
+	      break;
+	    case 148:
+	      pokemon = {name: "Dragonair", type1:"Dragon", type2:"Null"};
+	      break;
+	    case 149:
+	      pokemon = {name: "Dragonite", type1:"Dragon", type2:"Flying"};
+	      break;
+	    case 150:
+	      pokemon = {name: "Mewtwo", type1:"Psychic", type2:"Null"};
+	      break;
+	    case 151:
+	      pokemon = {name: "Mew", type1:"Psychic", type2:"Null"};
+	      break;
+	    default:
+	      pokemon = {name: "MissingNo", type1:"Null", type2:"Null"};
+	      break;
+	    }
+	    return pokemon;
+	  }
+	</script>
+	</head>
+
+	<div id="viz2">
+
+	<script>
+	var width = 700, height = 700;
+	//svg box for title and legend
+	var svgTitle2 = d3.select("#viz2").append("svg")
+	                .attr("width", width)
+	                .attr("height", 170)
+	                .style("display", "block")
+	                .style("margin", "auto");
+	//title
+	svgTitle2.append("text")
+	      .attr("y", 40)
+	      .attr("x", width/2)
+	      .attr("text-anchor", "middle")
+	      .style("font-family", "Noto Sans")
+	      .style("font-size", "30px")
+	      .text("Rural vs Urban Spawns for Various Rarities");
+	svgTitle2.append("text")
+	    .attr("y", 70)
+	    .attr("x", width/2)
+	    .attr("text-anchor", "middle")
+	    .style("font-family", "Noto Sans")
+	    .style("font-size", "14 px")
+	    .text("Data recorded from 09/02/2016 - 09/08/2016 in Los Angeles, New York City, and Chicago")
+	var legend2 = svgTitle2.append("g");
+	//Color legend
+	legend2.append("rect")
+	    .attr("y", 90)
+	    .attr("x", 270)
+	    .style("fill", "green")
+	    .style("stroke", "none")
+	    .attr("width", "20")
+	    .attr("height", "20");
+	legend2.append("text")
+	    .attr("y", 106)
+	    .attr("x", 300)
+	    .text("Rural Spawns")
+	    .style("font-family", "Noto Sans")
+	    .style("font-size", "14px");
+	legend2.append("rect")
+	    .attr("y", 120)
+	    .attr("x", 270)
+	    .style("fill", "skyblue")
+	    .style("stroke", "none")
+	    .attr("width", "20")
+	    .attr("height", "20");
+	legend2.append("text")
+	    .attr("y", 136)
+	    .attr("x", 300)
+	    .text("Urban Spawns")
+	    .style("font-family", "Noto Sans")
+	    .style("font-size", "14px");
+
+
+	  var rawData2;
+	  d3.csv("data/pokemon-data2.csv", function(data){
+	  rawData2 = data;
+	  var width = 700, height = 700;
+	  var svg2 = d3.select("#viz2").append("svg")
+	  .attr("width", width)
+	  .attr("height", height)
+	  .style("display", "block")
+	  .style("margin", "auto");
+
+	  var svg2b = d3.select("#viz2").append("svg")
+	  .attr("width", width)
+	  .attr("height", height)
+	  .style("display", "block")
+	  .style("margin", "auto");
+
+	  // the first element has no meaning
+	  var monCount = [0];
+	  for(i = 1; i < 152; i++){
+	    monCount[i] = 0;
+	  }
+	  // the first element has no meaning
+	  var zoneBreakdown = [{urban: 0, rural: 0}];
+	  for(i = 1; i < 152; i++){
+	    zoneBreakdown[i] = {urban: 0, rural: 0};
+	  }
+
+	  var pokemon;
+	  // Count the number of all pokemon
+	  rawData2.forEach(function(p){
+	    if (p.urban == "TRUE"){
+	      zoneBreakdown[parseInt(p.pokemonId)].urban += 1;
+	      monCount[parseInt(p.pokemonId)] += 1;
+	    }
+	    if (p.rural == "TRUE"){
+	      zoneBreakdown[parseInt(p.pokemonId)].rural += 1;
+	      monCount[parseInt(p.pokemonId)] += 1;
+	    }
+	    pokemon = idToMon(p.pokemonId);
+	  });
+
+	  var mostCommon = [0, 0, 0, 0, 0];
+	  var leastCommon = [999999, 999999, 999999, 999999, 999999];
+	  var mostCommonIds = [0, 0, 0, 0, 0];
+	  var leastCommonIds = [0, 0, 0, 0, 0];
+
+	  for (j = 1; j < 152; j++){
+	    // Get 5 largest counts
+	      if (monCount[j] > mostCommon[0]){
+	        mostCommon[4] = mostCommon[3];
+	        mostCommon[3] = mostCommon[2];
+	        mostCommon[2] = mostCommon[1];
+	        mostCommon[1] = mostCommon[0];
+	        mostCommon[0] = monCount[j];
+	        mostCommonIds[4] = mostCommonIds[3];
+	        mostCommonIds[3] = mostCommonIds[2];
+	        mostCommonIds[2] = mostCommonIds[1];
+	        mostCommonIds[1] = mostCommonIds[0];
+	        mostCommonIds[0] = j;
+	      }
+	      else if (monCount[j] > mostCommon[1]){
+	        mostCommon[4] = mostCommon[3];
+	        mostCommon[3] = mostCommon[2];
+	        mostCommon[2] = mostCommon[1];
+	        mostCommon[1] = monCount[j];
+	        mostCommonIds[4] = mostCommonIds[3];
+	        mostCommonIds[3] = mostCommonIds[2];
+	        mostCommonIds[2] = mostCommonIds[1];
+	        mostCommonIds[1] = j;
+	      }
+	      else if (monCount[j] > mostCommon[2]){
+	        mostCommon[4] = mostCommon[3];
+	        mostCommon[3] = mostCommon[2];
+	        mostCommon[2] = monCount[j];
+	        mostCommonIds[4] = mostCommonIds[3];
+	        mostCommonIds[3] = mostCommonIds[2];
+	        mostCommonIds[2] = j;
+	      }
+	      else if (monCount[j] > mostCommon[3]){
+	        mostCommon[4] = mostCommon[3];
+	        mostCommon[3] = monCount[j];
+	        mostCommonIds[4] = mostCommonIds[3];
+	        mostCommonIds[3] = j;
+	      }
+	      else if (monCount[j] > mostCommon[4]){
+	        mostCommon[4] = monCount[j];
+	        mostCommonIds[4] = j;
+	      }
+
+	      // Get 5 smallest counts (exclude zeros)
+	      if (monCount[j] < 100){
+	        // do nothing
+	      }
+	      else if (monCount[j] < leastCommon[0]){
+	        leastCommon[4] = leastCommon[3];
+	        leastCommon[3] = leastCommon[2];
+	        leastCommon[2] = leastCommon[1];
+	        leastCommon[1] = leastCommon[0];
+	        leastCommon[0] = monCount[j];
+	        leastCommonIds[4] = leastCommonIds[3];
+	        leastCommonIds[3] = leastCommonIds[2];
+	        leastCommonIds[2] = leastCommonIds[1];
+	        leastCommonIds[1] = leastCommonIds[0];
+	        leastCommonIds[0] = j;
+	      }
+	      else if (monCount[j] < leastCommon[1]){
+	        leastCommon[4] = leastCommon[3];
+	        leastCommon[3] = leastCommon[2];
+	        leastCommon[2] = leastCommon[1];
+	        leastCommon[1] = monCount[j];
+	        leastCommonIds[4] = leastCommonIds[3];
+	        leastCommonIds[3] = leastCommonIds[2];
+	        leastCommonIds[2] = leastCommonIds[1];
+	        leastCommonIds[1] = j;
+	      }
+	      else if (monCount[j] < leastCommon[2]){
+	        leastCommon[4] = leastCommon[3];
+	        leastCommon[3] = leastCommon[2];
+	        leastCommon[2] = monCount[j];
+	        leastCommonIds[4] = leastCommonIds[3];
+	        leastCommonIds[3] = leastCommonIds[2];
+	        leastCommonIds[2] = j;
+	      }
+	      else if (monCount[j] < leastCommon[3]){
+	        leastCommon[4] = leastCommon[3];
+	        leastCommon[3] = monCount[j];
+	        leastCommonIds[4] = leastCommonIds[3];
+	        leastCommonIds[3] = j;
+	      }
+	      else if (monCount[j] < leastCommon[4]){
+	        leastCommon[4] = monCount[j];
+	        leastCommonIds[4] = j;
+	      }
+	  }
+
+	  var barWidth = 40;
+	  var padding = 50;
+	  var mostYScale = d3.scaleLinear().domain([0, 7000]).range([height-padding, padding]);
+	  var leastYScale = d3.scaleLinear().domain([0,80]).range([height-padding, padding]);
+
+	  var countAxis1 = d3.axisLeft(mostYScale);
+	  svg2.append("g").call(countAxis1).attr("transform", "translate(50,0)");
+	  var countAxis2 = d3.axisLeft(leastYScale);
+	  svg2b.append("g").call(countAxis2).attr("transform", "translate(50,0)");
+	  var barTop;
+
+	  for (k = 0; k < 5; k++){
+	    barTop = mostYScale(zoneBreakdown[mostCommonIds[k]].rural);
+
+	    // Most Common Rural
+	    svg2.append("rect")
+	    .attr("width", barWidth)
+	    .attr("height", height - padding - barTop)
+	    .attr("x", 3*barWidth*k + padding)
+	    .attr("y", barTop)
+	    .attr("fill", "green");
+
+	    barTop = mostYScale(zoneBreakdown[mostCommonIds[k]].urban);
+
+	    // Most Common Urban
+	    svg2.append("rect")
+	    .attr("width", barWidth)
+	    .attr("height", height - padding - barTop)
+	    .attr("x", 3*barWidth*k + padding + 20)
+	    .attr("y", barTop)
+	    .attr("fill", "skyblue");
+
+	    barTop = leastYScale(zoneBreakdown[leastCommonIds[k]].rural);
+
+	    // Least Common Rural
+	    svg2b.append("rect")
+	    .attr("width", barWidth)
+	    .attr("height", height - padding - barTop)
+	    .attr("x", 3*barWidth*k + padding)
+	    .attr("y", barTop)
+	    .attr("fill", "green");
+
+	    barTop = leastYScale(zoneBreakdown[leastCommonIds[k]].urban);
+
+	    // Least Common Urban
+	    svg2b.append("rect")
+	    .attr("width", barWidth)
+	    .attr("height", height - padding - barTop)
+	    .attr("x", 3*barWidth*k + padding + 20)
+	    .attr("y", barTop)
+	    .attr("fill", "skyblue");
+	  }
+
+	  // x-axis 1
+	  svg2.append("line")
+	  .attr("x1", padding)
+	  .attr("y1", height - padding)
+	  .attr("x2", width - padding)
+	  .attr("y2", height - padding)
+	  .style("stroke", "rgb(0,0,0)")
+	  .style("stroke-width", 1);
+
+	  // x-axis 2
+	  svg2b.append("line")
+	  .attr("x1", padding)
+	  .attr("y1", height - padding)
+	  .attr("x2", width - padding)
+	  .attr("y2", height - padding)
+	  .style("stroke", "rgb(0,0,0)")
+	  .style("stroke-width", 1);
+
+	  svg2.append("text")
+	  .attr("x", "50%")
+	  .attr("y", "3%")
+	  .style("font-family", "Noto Sans")
+	  .style("font-size", "25px")
+	  .style("text-anchor", "middle")
+	  .text("Common Spawns");
+
+	  svg2b.append("text")
+	  .attr("x", "50%")
+	  .attr("y", "3%")
+	  .style("font-family", "Noto Sans")
+	  .style("font-size", "25px")
+	  .style("text-anchor", "middle")
+	  .text("Rare Spawns");
+
+	  svg2.append("text")
+	  .attr("x", "1%")
+	  .attr("y", "50%")
+	  .style("font-family", "Noto Sans")
+	  .style("font-size", "15px")
+	  .style("text-anchor", "left")
+	  .text("Count")
+	  .attr("transform", "rotate(90, 0, 350)");
+
+	  svg2b.append("text")
+	  .attr("x", "1%")
+	  .attr("y", "50%")
+	  .style("font-family", "Noto Sans")
+	  .style("font-size", "15px")
+	  .style("text-anchor", "left")
+	  .text("Count")
+	  .attr("transform", "rotate(90, 0, 350)");
+
+	  svg2.append("image")
+	  .attr("xlink:href", "assets/Pidgey.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60)
+	  .attr("y", height - padding);
+	  svg2.append("image")
+	  .attr("xlink:href", "assets/Rattata.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 3*barWidth)
+	  .attr("y", height - padding);
+	  svg2.append("image")
+	  .attr("xlink:href", "assets/Weedle.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 6*barWidth)
+	  .attr("y", height - padding);
+	  svg2.append("image")
+	  .attr("xlink:href", "assets/Spearow.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 9*barWidth)
+	  .attr("y", height - padding);
+	  svg2.append("image")
+	  .attr("xlink:href", "assets/Eevee.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 12*barWidth)
+	  .attr("y", height - padding);
+
+	  svg2b.append("image")
+	  .attr("xlink:href", "assets/Pidgeot.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60)
+	  .attr("y", height - padding);
+	  svg2b.append("image")
+	  .attr("xlink:href", "assets/Fearow.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 3*barWidth)
+	  .attr("y", height - padding);
+	  svg2b.append("image")
+	  .attr("xlink:href", "assets/Koffing.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 6*barWidth)
+	  .attr("y", height - padding);
+	  svg2b.append("image")
+	  .attr("xlink:href", "assets/Seel.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 9*barWidth)
+	  .attr("y", height - padding);
+	  svg2b.append("image")
+	  .attr("xlink:href", "assets/Metapod.png")
+	  .attr("width", padding)
+	  .attr("height", padding)
+	  .attr("x", 60 + 12*barWidth)
+	  .attr("y", height - padding);
+	});
+
+	</script>
+
+	</div>
+
+
+	<div id="area1"></div>
+	<div id="area2"></div>
+
+	<script>
+		var width = 700;
+		var height = 375;
+	//We determing a seperate svg object for each pokemon
+	var svgPika = d3.select("#area1")
+	  .append("svg")
+	  .attr("width", width)
+	  .attr("height", height);
+
+	var svgChar = d3.select("#area1")
+		  .append("svg")
+		  .attr("width", width)
+		  .attr("height", height);
+
+	var svgSqu = d3.select("#area2")
+			 .append("svg")
+			 .attr("width", width)
+			 .attr("height", height);
+
+	var svgBulb = d3.select("#area2")
+			  .append("svg")
+			  .attr("width", width)
+			  .attr("height", height);
+
+	//Legend text we will use later when we make the legend
+	var legendText = ["Encounters:", "10", "40", "70", "100"];
+	//Set up the projection of the US and make sure its centered
+	var projection = d3.geo.albersUsa()
+	  .translate([width/2, height/2])
+	  .scale([700]);
+	//Set pathGenerator to include projection
+	var pathGenerator = d3.geo.path().projection(projection);
+	var rawData;
+	var states;
+	//Load the json that contains the US path data
+	d3.json("assets/US_States-5m.json", function (error, data) {
+	  rawJson = data;
+	//Here I use a technique used in class to help seperate the code
+	//Source = Prof Minmo, Lecture Feb 16th, 2018
+	  showMap();
+
+	});
+
+	function showMap() {
+
+	  var pathGenerator = d3.geo.path().projection(projection);;
+
+	//Eatch variable paths is creating a map of the US for each pokemon
+	  var paths = svgPika.selectAll("path")
+	  .data(rawJson.features)
+	  .enter()
+	  .append("path")
+	  .style('fill', "#d5d5d5")
+	  .attr("d", pathGenerator);
+
+		var paths = svgBulb.selectAll("path")
+	  .data(rawJson.features)
+	  .enter()
+	  .append("path")
+	  .style('fill', "#d5d5d5")
+	  .attr("d", pathGenerator);
+
+		var paths = svgChar.selectAll("path")
+	  .data(rawJson.features)
+	  .enter()
+	  .append("path")
+	  .style('fill', "#d5d5d5")
+	  .attr("d", pathGenerator);
+
+		var paths = svgSqu.selectAll("path")
+	  .data(rawJson.features)
+	  .enter()
+	  .append("path")
+	  .style('fill', "#d5d5d5")
+	  .attr("d", pathGenerator);
+
+	//Here we access the city coordinates for the cities in the dataset that
+	//were in the US. We also access the pokemonGO data note this data is
+	//a reduced file of the original data since it is smaller and loads faster
+	d3.csv("data/cityCoor.csv", function(coor){
+	  d3.csv("data/OGPok.csv", function(data) {
+	    rawCsv = data;
+	//Here we change the name of the city to take off the underscore for aesthetics
+		function remunder(d){
+			if (d.city == "Los_Angeles"){
+			 return "Los Angeles";
+			} else if (d.city == "New_York"){
+			 return "New York";
+			} else{ return d.city; }
+		};
+	//We then nest the data by city
+	  nestedData = d3.nest()
+	  .key(remunder)
+	  .entries(rawCsv);
+	//We then map the data (by city) to calculate the count of each
+	//particular pokemon in each city
+	  pokemonData = nestedData.map(function (city) {
+	    var result = { city: city.key };
+	    result.Bulb = 0;
+	    result.Squ = 0;
+	    result.Pika = 0;
+		result.Char = 0;
+
+	    city.values.forEach(function (d) {
+				//We match the city with the corresponding longitute/latitude
+	      for(i = 0; i < coor.length; i++){
+	        if (d.city == coor[i].city) {
+	          result.lon = coor[i].lon;
+	          result.lat = coor[i].lat;
+	        }
+	      }
+
+
+	      if (d.pokemonId == 1) {
+	        result.Bulb++;
+	      }
+	      else if (d.pokemonId == 4) {
+	        result.Char++;
+	      }
+	      else if (d.pokemonId == 7) {
+	        result.Squ++;
+	      }
+	      else if (d.pokemonId == 25) {
+	        result.Pika++;
+	      }
+	    });
+	    return result;
+	  });
+
+		//find the max amount of pokemon in a particular city
+	  var pikaMax = d3.max(pokemonData, function(d) {return d.Pika;});
+	  var bulbMax = d3.max(pokemonData, function(d) {return d.Bulb;});
+	  var charMax = d3.max(pokemonData, function(d) {return d.Char;});
+	  var squMax = d3.max(pokemonData, function(d) {return d.Squ;});
+
+
+	  var amountScaleP = d3.scale.sqrt().domain([0, pikaMax]).range([0, 17]);
+	  var amountScaleB = d3.scale.sqrt().domain([0, bulbMax]).range([0, 17]);
+	  var amountScaleC = d3.scale.sqrt().domain([0, charMax]).range([0, 17]);
+	  var amountScaleS = d3.scale.sqrt().domain([0, squMax]).range([0, 17]);
+
+		//Each call to pokemonData will append the appropriate circles
+		//and label the city accordingly
+	    pokemonData.forEach(function (city) {
+	  	   svgPika.append("circle")
+	       .style('fill', "#fee772")
+	       .attr("r", amountScaleP(city.Pika))
+	  	   .attr("cx", projection([city.lon, city.lat])[0])
+	  	   .attr("cy", projection([city.lon, city.lat])[1]);
+
+	       var text = svgPika.append("text")
+	       .text(city.city)
+	       .attr("x", projection([city.lon, city.lat])[0])
+	  	   .attr("y", projection([city.lon, city.lat])[1])
+	       .attr("transform", "translate(18,-5)")
+	       .attr("font-family", "Noto Sans")
+	       .attr("font-size", "15px");
+	  	 });
+
+	     pokemonData.forEach(function (city) {
+	   	   svgBulb.append("circle")
+	        .style('fill', "#8ece76")
+	        .attr("r", amountScaleB(city.Bulb))
+	   	    .attr("cx", projection([city.lon, city.lat])[0])
+	   	    .attr("cy", projection([city.lon, city.lat])[1]);
+
+			 var text = svgBulb.append("text")
+			 .text(city.city)
+			 .attr("x", projection([city.lon, city.lat])[0])
+			 .attr("y", projection([city.lon, city.lat])[1])
+			 .attr("transform", "translate(18,-5)")
+			 .attr("font-family", "Noto Sans")
+			 .attr("font-size", "15px");
+			  });
+
+			pokemonData.forEach(function (city) {
+	   	   	svgChar.append("circle")
+	         .style('fill', "#DA1003")
+	         .attr("r", amountScaleC(city.Char))
+	   	     .attr("cx", projection([city.lon, city.lat])[0])
+	   	     .attr("cy", projection([city.lon, city.lat])[1]);
+
+			 var text = svgChar.append("text")
+			 .text(city.city)
+			 .attr("x", projection([city.lon, city.lat])[0])
+			 .attr("y", projection([city.lon, city.lat])[1])
+			 .attr("transform", "translate(18,-5)")
+			 .attr("font-family", "Noto Sans")
+			 .attr("font-size", "15px");
+			 });
+
+			 pokemonData.forEach(function (city) {
+	   	     svgSqu.append("circle")
+	        .style('fill', "#6e93d0")
+	        .attr("r", amountScaleS(city.Squ))
+	   	    .attr("cx", projection([city.lon, city.lat])[0])
+	   	    .attr("cy", projection([city.lon, city.lat])[1]);
+
+			 var text = svgSqu.append("text")
+			 .text(city.city)
+			 .attr("x", projection([city.lon, city.lat])[0])
+			 .attr("y", projection([city.lon, city.lat])[1])
+			 .attr("transform", "translate(18,-5)")
+			 .attr("font-family", "Noto Sans")
+			 .attr("font-size", "15px");
+			 });
+
+	// Modified Legend Code from Mike Bostock: http://bl.ocks.org/mbostock/3888852
+	//Most of the transformations had to be changed to fit the maps better
+	     legData = [0, 10, 40, 70, 100];
+
+			 //Create the legend box
+	     var legendPika = d3.select("#area2").append("svg")
+	     			.attr("class", "legend")
+	     			.attr("width", 290)
+	    			.attr("height", 210)
+	    			.attr("transform", "translate(0, -700)")
+						//Load the legend data onto the box
+				   	.selectAll("g")
+					.data(legData)
+				   	.enter()
+				   	.append("g")
+				    .attr("transform", function(d, i) {
+											return "translate(20," + i * 45 + ")"; });
+					//Make the corresponing circles for each pokemon data
+				  	legendPika.append("circle")
+				   		  .attr("r", function(d) { return amountScaleP(d);})
+								.attr("transform", "translate(0,10)")
+				   		  .style('fill', "#fee772");
+						//Add Labels to legend attributes
+				  	legendPika.append("text")
+				  		  .data(legendText)
+				      	  .attr("x", 32)
+				      	  .attr("y", 9)
+									.attr("text-anchor", "middle")
+				      	  .style("font-family", "Roboto Mono")
+				      	  .attr("dy", ".35em")
+				      	  .text(function(d) { return d; });
+			//Simply repeat for each pokemon
+			 var legendChar = d3.select("#area2").append("svg")
+						.attr("class", "legend")
+						.attr("width", 290)
+						.attr("height", 210)
+						.attr("transform", "translate(400, -700)")
+						//Load the legend data onto the box
+				   	.selectAll("g")
+					.data(legData)
+				   	.enter()
+				   	.append("g")
+				    .attr("transform", function(d, i) {
+											return "translate(20," + i * 45 + ")"; });
+					//Make the corresponing circles for each pokemon data
+				  	legendChar.append("circle")
+				   		  .attr("r", function(d) { return amountScaleC(d);})
+						  .attr("transform", "translate(0,10)")
+				   		  .style('fill', "#DA1003");
+						//Add Labels to legend attributes
+				  	legendChar.append("text")
+				  		  .data(legendText)
+				      	  .attr("x", 32)
+				      	  .attr("y", 9)
+									.attr("text-anchor", "middle")
+				      	  .style("font-family", "Roboto Mono")
+				      	  .attr("dy", ".35em")
+				      	  .text(function(d) { return d; });
+
+			var legendBulb = d3.select("#area2").append("svg")
+			 			.attr("class", "legend")
+			 			.attr("width", 290)
+			 			.attr("height", 210)
+			 			.attr("transform", "translate(100, -310)")
+						//Load the legend data onto the box
+				   	.selectAll("g")
+					.data(legData)
+				   	.enter()
+				   	.append("g")
+				    .attr("transform", function(d, i) {
+											return "translate(20," + i * 45 + ")"; });
+					//Make the corresponing circles for each pokemon data
+				  	legendBulb.append("circle")
+				   		  .attr("r", function(d) { return amountScaleB(d);})
+								.attr("transform", "translate(0,10)")
+				   		  .style('fill', "#8ece76");
+						//Add Labels to legend attributes
+				  	legendBulb.append("text")
+				  		  .data(legendText)
+				      	  .attr("x", 32)
+				      	  .attr("y", 9)
+									.attr("text-anchor", "middle")
+				      	  .style("font-family", "Roboto Mono")
+				      	  .attr("dy", ".35em")
+				      	  .text(function(d) { return d; });
+
+			var legendSqu = d3.select("#area2").append("svg")
+						.attr("class", "legend")
+						.attr("width", 290)
+						.attr("height", 210)
+						.attr("transform", "translate(-870, -310)")
+						//Load the legend data onto the box
+				   	.selectAll("g")
+					.data(legData)
+				   	.enter()
+				   	.append("g")
+				    .attr("transform", function(d, i) {
+											return "translate(20," + i * 45 + ")"; });
+						//Make the corresponing circles for each pokemon data
+				  	legendSqu.append("circle")
+				   		  .attr("r", function(d) { return amountScaleS(d);})
+								.attr("transform", "translate(0,10)")
+				   		  .style('fill', "#6e93d0");
+						//Add Labels to legend attributes
+				  	legendSqu.append("text")
+				  		  .data(legendText)
+				      	  .attr("x", 32)
+				      	  .attr("y", 9)
+									.attr("text-anchor", "middle")
+				      	  .style("font-family", "Roboto Mono")
+				      	  .attr("dy", ".35em")
+				      	  .text(function(d) { return d; });
+
+		svgPika.append("text")
+			.attr("x", (width/ 2))
+			.attr("y", 30)
+			.attr("text-anchor", "middle")
+			.style("font-size", "27px")
+			.text("Amount of Encounters with Pikachu")
+			.style("font-family", "Noto Sans");
+
+			svgChar.append("text")
+				.attr("x", (width/ 2))
+				.attr("y", 30)
+				.attr("text-anchor", "middle")
+				.style("font-size", "27px")
+				.text("Amount of Encounters with Charmander")
+				.style("font-family", "Noto Sans");
+
+				svgSqu.append("text")
+					.attr("x", (width/ 2))
+					.attr("y", 30)
+					.attr("text-anchor", "middle")
+					.style("font-size", "27px")
+					.text("Amount of Encounters with Squirtle")
+					.style("font-family", "Noto Sans");
+
+					svgBulb.append("text")
+						.attr("x", (width/ 2))
+						.attr("y", 30)
+						.attr("text-anchor", "middle")
+						.style("font-size", "27px")
+						.text("Amount of Encounters with Bulbasaur")
+						.style("font-family", "Noto Sans");
+	  });
+	});
+	}
+
+
+
+	</script>
+
+	</body>
+	</html>
